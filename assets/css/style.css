@@ -1,0 +1,89 @@
+@import url('https://fonts.googleapis.com/css?family=Gochi+Hand&display=swap');
+
+body {
+    background-image:url('../../img/background.png');
+    background-repeat:no-repeat;
+    background-position:center;
+}
+
+.reverse-flashcard {
+    background: repeating-linear-gradient(
+        45deg,
+        #ECECEC,
+        #ECECEC 10px,
+        #dddddd 10px,
+        #dddddd 20px
+    );
+}
+
+.red-flashcard {
+    border: 1px solid rgba(114, 28, 36) !important;
+    background: #F8D7DA !important;
+    animation: shake 0.82s cubic-bezier(.36,.07,.19,.97) both;
+    transform: translate3d(0, 0, 0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+}
+
+@keyframes shake {
+    10%, 90% {
+      transform: translate3d(-1px, 0, 0);
+    }
+    
+    20%, 80% {
+      transform: translate3d(2px, 0, 0);
+    }
+  
+    30%, 50%, 70% {
+      transform: translate3d(-4px, 0, 0);
+    }
+  
+    40%, 60% {
+      transform: translate3d(4px, 0, 0);
+    }
+}
+
+.green-flashcard {
+    border: 1px solid rgba(44, 105, 58) !important;
+    background: #d4edda !important;
+}
+
+.yellow-flashcard {
+    background: #FFF3CD;
+    border: 1px solid rgba(133, 100, 4) !important;
+}
+
+.hide {
+    opacity: 0;
+    transition: all ease 0.6s;
+}
+
+.flashcard {
+    font-family: 'Gochi Hand', cursive;
+    border: 1px solid rgba(0, 0, 0);
+    cursor: pointer;
+}
+
+.centered {
+    display: flex;
+    width: 100vw;
+    height: 100vh;
+    justify-content: center;
+    align-items: center;
+}
+
+.flashcard > .card-body {
+    height: 136px;  
+    display: flex;
+    justify-content: center;
+    align-content: center;
+    flex-direction: column;
+}
+
+.center-card {
+    display: block;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+
