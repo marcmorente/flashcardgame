@@ -1,37 +1,19 @@
 <?php
+require_once 'vendor/autoload.php';
 
-$arrayFlashcards = [];
-$flashcards = [];
-$count = 0;
+use Model\FlashcardsRepository;
 
-$fn = fopen("flashcards.txt", "r");
-while (!feof($fn)) {
-    //Parse csv flashcard
-    $data = fgetcsv($fn, ",");
-    
-    $question = $data[0];
-    $answer = $data[1];
-    $arrayFlashcards[] = [$question => '{{reverse}}'.$answer];// Add tag for know who is the reverse of card
+//Get flashcards randomly from database 
+$flashcardRepository = new FlashcardsRepository();
+$flashcards = $flashcardRepository->getFlashcardsRandomly();
 
-    /*
-    * Create array concatenating it questions and answers for matching later.
-    * Hash the questons and answers to don't have problems with html codification
-    */
-    $flashcards[] = md5($question) . md5($answer);
-    $flashcards[] = md5($answer) . md5($question);
-}
-
-//Get random quantity of questons and responses
-$rand = rand(0, count($arrayFlashcards));
-$getRandomFlashcards = array_slice($arrayFlashcards, $rand, 6);
+//Iterate array of objects, and create an array with questions and answers
 $questonsAndRespones = [];
-
-//Iterate the array of arrays to get the questons and responses
-foreach ($getRandomFlashcards as $fCard) {
-    foreach ($fCard as $key => $value) {
-        $questonsAndRespones[] = $key;
-        $questonsAndRespones[] = $value;
-    }
+foreach ($flashcards as $flashcard) {
+    $question = $flashcard->getQuestion();
+    $answer = $flashcard->getAnswer();
+    $questonsAndRespones[] = $question;
+    $questonsAndRespones[] = '{{reverse}}'.$answer;// Add tag for know who is the reverse of card
 }
 
 //Randomize questons and responses
@@ -51,9 +33,9 @@ shuffle($questonsAndRespones);
     <body>
         <div class="container centered" id="flashcard-container" >
             <div class="row">
-                <?php foreach ($questonsAndRespones as $key => $flashcard) { ?>
-                    <div class="col-lg-4" id="<?= $key; ?>">
-                        <div class="card m-2 flashcard center-card <?php if (strpos($flashcard, '{{reverse}}') !== false) { echo 'reverse-flashcard'; }?>" data-id="<?= $key; ?>" data-value="<?= md5(str_replace("{{reverse}}", "", $flashcard)); ?>">
+                <?php foreach ($questonsAndRespones as $flashcard) { ?>
+                    <div class="col-lg-4">
+                        <div class="card m-2 flashcard center-card <?php if (strpos($flashcard, '{{reverse}}') !== false) { echo 'reverse-flashcard'; }?>" data-value="<?= md5(str_replace("{{reverse}}", "", $flashcard)); ?>">
                             <div class="card-body text-center">
                                 <div>
                                     <?= str_replace("{{reverse}}", "", $flashcard); ?>
@@ -66,7 +48,6 @@ shuffle($questonsAndRespones);
             </div>
         </div>
 
-
         <script src="assets/js/jquery-3.3.1.min.js"></script>
         <script src="assets/js/bootstrap.min.js"></script>
         <script src="assets/js/sweetalert2.min.js"></script>
@@ -75,7 +56,6 @@ shuffle($questonsAndRespones);
         <script type="text/javascript">
             $(document).ready(function () {
                 let questionAndResponse = "";
-                let flashcards = <?php echo json_encode($flashcards); ?>;
                 let click = 0;
                 let correct = 0;
                 let delayInMilliseconds = 1000;
@@ -99,62 +79,69 @@ shuffle($questonsAndRespones);
                     }
                     
                 });
-                
+
                 //Matching flashcards
                 $(".flashcard").click(function () {
                     click++;
-                    $(this).addClass("yellow-flashcard");
-
-                    questionAndResponse += $(this).attr("data-value");
                     
-                    //Find if the matching is correct
-                    let result = flashcards.indexOf(questionAndResponse);
-
-                    if (click == 2 && result !== -1) {
-                        let el = $('.yellow-flashcard');
-                        el.addClass('green-flashcard');
-                        el.removeClass('yellow-flashcard');
-
-                        setTimeout(function() {
-                            let hide = $('.green-flashcard');
-                            hide.addClass('hide');
-                            hide.removeClass('green-flashcard');
-                            click = 0;
-                            questionAndResponse = "";
-                        }, delayInMilliseconds);
-
-                        correct++;
-
-                        if (correct == 6) {
-                            setTimeout(function() {
-                                Swal.fire({
-                                    title: "Well done!",
-                                    text: "Do you want to play again?",
-                                    type: 'success',
-                                    showCancelButton: true,
-                                    confirmButtonColor: '#3085d6',
-                                    cancelButtonColor: '#d33',
-                                    confirmButtonText: 'Yes!'
-                                }).then((result) => {
-                                    if (result.value) {
-                                        location.reload();
-                                    }
-                                });
-                            }, delayInMilliseconds);
-                        }
+                    if (click <= 2) { //Only max of two clicks for matching
+                        $(this).addClass("yellow-flashcard");
                         
-                    } else if (click == 2) { 
-                        //Restore default values if the matching is incorrect
-                        let el = $('.yellow-flashcard');
-                        el.addClass('red-flashcard');
-                        el.removeClass('yellow-flashcard');
+                        //Concatenate question and response for each click
+                        questionAndResponse += $(this).attr("data-value");
 
-                        setTimeout(function() {
-                            $('.flashcard').removeClass('red-flashcard');
-                        }, delayInMilliseconds);
+                        //Find if the matching is correct via AJAX
+                        $.ajax({
+                            type: 'post',
+                            url: 'ajax_match_flashcards.php',
+                            data: {
+                                hash: questionAndResponse
+                            },
+                            success: function(response){
+                                if (click == 2 && response.trim() == 1) {
+                                    let el = $('.yellow-flashcard');
+                                    el.addClass('green-flashcard');
+                                    el.removeClass('yellow-flashcard');
 
-                        click = 0;
-                        questionAndResponse = "";
+                                    setTimeout(function() {
+                                        $('.green-flashcard').remove();
+                                        click = 0;
+                                        questionAndResponse = "";
+                                    }, delayInMilliseconds);
+
+                                    correct++;
+
+                                    if (correct == 6) {
+                                        setTimeout(function() {
+                                            Swal.fire({
+                                                title: "Well done!",
+                                                text: "Do you want to play again?",
+                                                type: 'success',
+                                                showCancelButton: true,
+                                                confirmButtonColor: '#3085d6',
+                                                cancelButtonColor: '#d33',
+                                                confirmButtonText: 'Yes!'
+                                            }).then((result) => {
+                                                if (result.value) {
+                                                    location.reload();
+                                                }
+                                            });
+                                        }, delayInMilliseconds);
+                                    }
+                                    
+                                } else if (click == 2) { 
+                                    //Restore default values if the matching is incorrect
+                                    let el = $('.yellow-flashcard');
+                                    el.addClass('red-flashcard');
+                                    el.removeClass('yellow-flashcard');
+                                    setTimeout(function() {
+                                        $('.flashcard').removeClass('red-flashcard');
+                                        click = 0;
+                                        questionAndResponse = "";
+                                    }, delayInMilliseconds);
+                                }
+                            }
+                        });
                     }
                 });
             });
